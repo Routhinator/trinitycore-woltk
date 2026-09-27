@@ -61,6 +61,10 @@
 #include <boost/circular_buffer.hpp>
 #include <zlib.h>
 
+//npcbot
+#include "botconfig.h"
+//end npcbot
+
 namespace {
 
 std::string const DefaultPlayerName = "<none>";
@@ -488,6 +492,10 @@ void WorldSession::LogoutPlayer(bool save)
 
     m_playerLogout = true;
     m_playerSave = save;
+
+    //npcbot - free all bots and remove from botmap
+    _player->RemoveAllBots();
+    //end npcbots
 
     if (_player)
     {
@@ -1500,6 +1508,16 @@ uint32 WorldSession::DosProtection::GetMaxPacketCounterAllowed(uint16 opcode) co
             maxPacketCounterAllowed = PLAYER_SLOTS_COUNT;
             break;
         }
+        //npcbot: prevent kicks when too many bots spawned in one spot
+        case CMSG_GET_MIRRORIMAGE_DATA:
+        {
+            if (BotCfg::GetBotInfoPacketsLimit() > -1)
+                maxPacketCounterAllowed = BotCfg::GetBotInfoPacketsLimit();
+            else
+                maxPacketCounterAllowed = 100;
+            break;
+        }
+        //end npcbot
         default:
         {
             maxPacketCounterAllowed = 100;

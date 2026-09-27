@@ -31,6 +31,13 @@
 #include "SharedDefines.h"
 #include "WorldSession.h"
 
+//npcbot
+#include "botconfig.h"
+#include "botdatamgr.h"
+#include "botmgr.h"
+#include "Creature.h"
+//end npcbot
+
 namespace lfg
 {
 
@@ -99,6 +106,18 @@ void LFGPlayerScript::OnMapChanged(Player* player)
             if (Player* member = itr->GetSource())
                 player->GetSession()->SendNameQueryOpcode(member->GetGUID());
 
+        //npcbot
+        for (GroupBotReference* itr = group->GetFirstBotMember(); itr != nullptr; itr = itr->next())
+            if (Creature* member = itr->GetSource())
+                player->GetSession()->SendNameQueryOpcode(member->GetGUID());
+        //end npcbot
+
+        //npcbot
+        if (group->GetLeaderGUID() == player->GetGUID() && group->GetMembersCount() < MAX_GROUP_SIZE &&
+            BotCfg::IsNpcBotModEnabled() && BotCfg::IsNpcBotDungeonFinderBotGenerationEnabled())
+            BotDataMgr::GenerateDungeonBots(player, group, map);
+        //end npcbot
+
         if (sLFGMgr->selectedRandomLfgDungeon(player->GetGUID()))
             player->CastSpell(player, LFG_SPELL_LUCK_OF_THE_DRAW, true);
     }
@@ -106,12 +125,22 @@ void LFGPlayerScript::OnMapChanged(Player* player)
     {
         Group* group = player->GetGroup();
         if (group && group->GetMembersCount() == 1)
+        //npcbot
+        if (!player->GetSession()->PlayerLoading())
+        //end npcbot
         {
             sLFGMgr->LeaveLfg(group->GetGUID());
             group->Disband();
             TC_LOG_DEBUG("lfg", "LFGPlayerScript::OnMapChanged, Player {}({}) is last in the lfggroup so we disband the group.",
                 player->GetName(), player->GetGUID().ToString());
         }
+
+        //npcbot
+        if (group && group->isLFGGroup())
+            if (sLFGMgr->GetState(group->GetGUID()) >= LFG_STATE_FINISHED_DUNGEON)
+                player->GetBotMgr()->RemoveAllSummonedBots();
+        //end npcbot
+
         player->RemoveAurasDueToSpell(LFG_SPELL_LUCK_OF_THE_DRAW);
     }
 }

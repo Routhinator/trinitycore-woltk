@@ -33,10 +33,50 @@
 #include "UpdateMask.h"
 #include "World.h"
 
+//npcbot
+#include "CreatureData.h"
+#include "botdatamgr.h"
+#include "botmgr.h"
+//end npcbot
+
 void WorldSession::SendNameQueryOpcode(ObjectGuid guid)
 {
     WorldPackets::Query::QueryPlayerNameResponse response;
     response.Player = guid;
+
+    //npcbot: try query bot info
+    if (guid.IsCreature())
+    {
+        uint32 creatureId = guid.GetEntry();
+        CreatureTemplate const* creatureTemplate = sObjectMgr->GetCreatureTemplate(creatureId);
+        if (creatureTemplate && creatureTemplate->IsNPCBot())
+        {
+            std::string_view creatureName = creatureTemplate->Name;
+            if (CreatureLocale const* creatureInfo = sObjectMgr->GetCreatureLocale(creatureId))
+            {
+                uint32 loc = GetSessionDbLocaleIndex();
+                if (creatureInfo->Name.size() > loc && !creatureInfo->Name[loc].empty() && Utf8FitTo(creatureInfo->Name[loc], {}))
+                    creatureName = creatureInfo->Name[loc];
+            }
+
+            NpcBotExtras const* extData = ASSERT_NOTNULL(BotDataMgr::SelectNpcBotExtras(creatureId));
+            NpcBotAppearanceData const* appData = BotDataMgr::SelectNpcBotAppearance(creatureId);
+
+            response.Result = RESPONSE_SUCCESS; // name known
+
+            WorldPackets::Query::PlayerGuidLookupData& bdata = response.Data.emplace();
+            bdata.Name = creatureName;
+            bdata.Race = BotMgr::GetBotPlayerRace(extData->bclass, extData->race);
+            bdata.Sex = appData ? appData->gender : static_cast<uint8>(GENDER_MALE);
+            bdata.ClassID = BotMgr::GetBotPlayerClass(extData->bclass);
+        }
+        else
+            response.Result = RESPONSE_FAILURE; // name unknown
+
+        SendPacket(response.Write());
+        return;
+    }
+    //end npcbot
 
     if (CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByGuid(guid))
     {

@@ -33,6 +33,10 @@
 #include "World.h"
 #include "WorldPacket.h"
 
+// npcbot
+#include "botmgr.h"
+//end npcbot
+
 void WorldSession::HandleSplitItemOpcode(WorldPackets::Item::SplitItem& splitItem)
 {
     TC_LOG_DEBUG("network", "HandleSplitItemOpcode: receive FromPackSlot: {}, FromSlot: {}, ToPackSlot: {}, ToSlot: {}, Quantity: {}",
@@ -611,6 +615,15 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
         int32 leftInStock = !vendorItem->maxcount ? -1 : int32(vendor->GetVendorItemCurrentCount(vendorItem));
         if (!_player->IsGameMaster()) // ignore conditions if GM on
         {
+            // npcbot
+            if (_player->HaveBot())
+            {
+                if (!(itemTemplate->GetAllowableClass() & (_player->GetClassMask() | _player->GetBotMgr()->GetAllNpcBotsClassMask())) &&
+                    itemTemplate->GetBonding() == BIND_WHEN_PICKED_UP && !_player->IsGameMaster())
+                    continue;
+            }
+            else
+            // end npcbot
             // Respect allowed class
             if (!(itemTemplate->GetAllowableClass() & _player->GetClassMask()) && itemTemplate->GetBonding() == BIND_WHEN_PICKED_UP)
                 continue;
