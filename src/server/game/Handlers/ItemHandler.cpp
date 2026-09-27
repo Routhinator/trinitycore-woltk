@@ -32,6 +32,7 @@
 #include "QueryPackets.h"
 #include "World.h"
 #include "WorldPacket.h"
+#include "Transmogrification.h"
 
 // npcbot
 #include "botmgr.h"
@@ -507,7 +508,8 @@ void WorldSession::HandleBuybackItem(WorldPackets::Item::BuyBackItem& packet)
             _player->ModifyMoney(-(int32)price);
             _player->RemoveItemFromBuyBackSlot(packet.Slot, false);
             _player->ItemAddedQuestCheck(pItem->GetEntry(), pItem->GetCount());
-            _player->StoreItem(dest, pItem, true);
+            pItem = _player->StoreItem(dest, pItem, true);
+            Transmogrification::instance().AddToCollection(_player, pItem);
         }
         else
             _player->SendEquipError(msg, pItem, nullptr);
