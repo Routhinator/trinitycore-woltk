@@ -41,6 +41,9 @@
 #include "Unit.h"
 #include "Util.h"
 #include "Vehicle.h"
+#ifdef ELUNA
+#include "LuaEngine.h"
+#endif
 #include "WorldPacket.h"
 #include <numeric>
 
@@ -387,7 +390,7 @@ AuraEffect::AuraEffect(Aura* base, SpellEffectInfo const& spellEfffectInfo, int3
 m_base(base), m_spellInfo(base->GetSpellInfo()), m_effectInfo(spellEfffectInfo), m_spellmod(nullptr),
 m_baseAmount(baseAmount ? *baseAmount : spellEfffectInfo.BasePoints),
 _amount(), _periodicTimer(0), _period(0), _ticksDone(0),
-m_canBeRecalculated(true), m_isPeriodic(false)
+m_canBeRecalculated(true), m_isPeriodic(false), m_scriptRef(this, NoopAuraEffectDeleter())
 {
     CalculatePeriodic(caster, true, false);
 
@@ -398,6 +401,7 @@ m_canBeRecalculated(true), m_isPeriodic(false)
 
 AuraEffect::~AuraEffect()
 {
+    m_scriptRef = nullptr;
     delete m_spellmod;
 }
 
@@ -5048,6 +5052,12 @@ void AuraEffect::HandlePeriodicTriggerSpellAuraTick(Unit* target, Unit* caster) 
 
         if (Unit* triggerCaster = triggeredSpellInfo->NeedsToBeTriggeredByCaster(m_spellInfo) ? caster : target)
         {
+#ifdef ELUNA
+            Creature* c = target->ToCreature();
+            if (c && caster)
+                if (Eluna* e = caster->GetEluna())
+                    e->OnDummyEffect(triggerCaster, GetId(), SpellEffIndex(GetEffIndex()), c);
+#endif
             triggerCaster->CastSpell(target, triggerSpellId, this);
             TC_LOG_DEBUG("spells.aura.effect", "AuraEffect::HandlePeriodicTriggerSpellAuraTick: Spell {} Trigger {}", GetId(), triggeredSpellInfo->Id);
         }
